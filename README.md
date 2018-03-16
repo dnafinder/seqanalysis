@@ -49,8 +49,7 @@ The algorithm will discard all non informative couple; then, it will
 start to move along the chart. If it goes out the twilight zone, the
 sperimental plan can be stopped and non more couple will be required.
 To test the function with these data:
-   x=[1 1; 1 0; 0 0; 1 0; 1 0; 1 1; 0 1; 1 1; 1 0; 1 0; 1 0; 1 1; 1 0; ...
-0 1; 0 0; 1 0; 1 0; 1 0; 1 1; 1 0];
+   x=[1 1; 1 0; 0 0; 1 0; 1 0; 1 1; 0 1; 1 1; 1 0; 1 0; 1 0; 1 1; 1 0; 0 1; 0 0; 1 0; 1 0; 1 0; 1 1; 1 0];
 seqanalysis(x)
 
           Created by Giuseppe Cardillo
