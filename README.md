@@ -1,87 +1,86 @@
 [![Open in MATLAB Online](https://www.mathworks.com/images/responsive/global/open-in-matlab-online.svg)](https://matlab.mathworks.com/open/github/v1?repo=dnafinder/seqanalysis)
 
 🌐 Overview
-seqanalysis implements a sequential analysis procedure for paired binary outcomes from two treatments (A and B), following Bross’ sequential medical plans. Each pair of patients receives A and B, and their responses are coded as 1 (positive) or 0 (negative). Non-informative pairs (both positive or both negative) are discarded, and the remaining pairs are used to walk through a pre-defined 31x31 decision map. The walk stops when a decision boundary is reached or when the data are exhausted.
+This repository contains two complementary MATLAB functions implementing Bross’ sequential analysis for paired binary outcomes and a Monte Carlo robustness evaluator for order-dependence:
+
+• seqanalysis.m — performs sequential hypothesis testing based on the classical Bross decision map.
+• seqanalysis_ordercheck.m — evaluates how sensitive the sequential conclusion is to the order of informative pairs.
+
+The method is useful in clinical or experimental settings where pairs of subjects receive two treatments (A and B) and outcomes are binary (0/1). The sequential approach may stop early when sufficient evidence is accumulated.
 
 ⭐ Features
-- Sequential decision procedure for paired binary data (A vs B)
-- Uses a 31x31 decision map stored in seqanmap.mat
-- Automatically discards non-informative pairs (1,1 and 0,0)
-- Identifies regions where:
-  - A is better
-  - B is better
-  - There is no difference
-  - Data remain in a twilight (inconclusive) zone
-- Optional plotting of the decision map and the path followed
-- Explicit handling of cases with no informative pairs
+• Supports paired binary outcomes (A vs B)
+• Automatically discards non-informative pairs
+• Traverses the 31×31 Bross decision map
+• Detects “A better”, “B better”, “No difference”, or “Twilight zone”
+• Optional graphical visualization
+• Robustness analysis via random permutations
+• Binomial confidence intervals for stability of outcomes
+• Optional waitbar for long Monte Carlo runs
 
 🛠️ Installation
-1. Place seqanalysis.m and seqanmap.mat in a folder.
-2. Add that folder to your MATLAB path using:
-   addpath('path_to_seqanalysis_folder')
-3. Ensure that seqanmap.mat contains a 31x31 numeric matrix called “map”.
+1. Clone the repository:
+   git clone https://github.com/dnafinder/seqanalysis
+2. Ensure seqanalysis.m, seqanalysis_ordercheck.m, and seqanmap.mat are on your MATLAB path.
+No additional toolboxes are required except Statistics Toolbox for binofit.
 
 ▶️ Usage
-Basic call:
-    seqanalysis(x)
+Basic sequential analysis:
+   out = seqanalysis(x);
 
-With plotting disabled:
-    seqanalysis(x, 0)
+Silent mode:
+   out = seqanalysis(x, 0);
 
-With output:
-    out = seqanalysis(x);
+Robustness to ordering:
+   stats = seqanalysis_ordercheck(x, 5000);
 
-Where x is an N-by-2 matrix with rows [A B] and A,B in {0,1}.
+Disable progress bar:
+   stats = seqanalysis_ordercheck(x, 5000, 0.05, false);
 
 🔣 Inputs
-- x
-  Type: N-by-2 numeric matrix.
-  Description: paired outcomes for treatments A and B, with each entry equal to 0 or 1.
+seqanalysis:
+   x      — N×2 matrix containing 0/1 outcomes.
+   flag   — Show plot (1) or silent mode (0).
 
-- flag (optional)
-  Type: scalar (0 or 1).
-  Description:
-    1 = display the sequential decision chart (default)
-    0 = perform the analysis without plotting.
+seqanalysis_ordercheck:
+   x            — N×2 binary matrix.
+   nperm        — Number of random permutations.
+   alpha        — Significance level for confidence intervals.
+   showProgress — Display waitbar (true/false).
 
 📤 Outputs
-- out
-  Type: scalar.
-  Description: final state code reached in the decision map:
-    -1 : twilight zone (data not sufficient at the last step)
-     0 : no difference between A and B
-     1 : A is better
-     2 : B is better
-     3 : path tracking (internal code, normally not the final decision)
-     4 : final point of movement (decision boundary)
-    NaN : no informative pairs (all pairs were non-informative)
+seqanalysis returns:
+   -1  Twilight (inconclusive)
+    0  No difference
+    1  A is better
+    2  B is better
+   NaN No informative pairs
+
+seqanalysis_ordercheck returns a structure with:
+   codes       — all permutation results
+   freq        — table with counts, proportions, and confidence intervals
+   pA, pB      — probability that A or B wins
+   pNoDiff     — probability of no difference
+   pTwilight   — probability of inconclusive results
+   pNaN        — probability of no informative pairs
 
 📘 Interpretation
-Each informative pair (A,B) guides a step in the decision map:
-- (1,0)    → a step favoring A (move up)
-- (0,1)    → a step favoring B (move right)
-Non-informative pairs:
-- (1,1) and (0,0) are removed before starting the walk.
-The path continues until:
-- it exits the twilight zone into a region favoring A or B,
-- it enters a region indicating no difference,
-- or it stops with insufficient data in the twilight zone.
-The final state code (out) and the plot (if enabled) show the conclusion of the sequential plan.
+• A high pA with narrow CI → robust evidence for A being better.
+• A high pB → robust evidence for B being better.
+• High pTwilight → order-dependent and inconclusive system.
+• Mixed proportions → sequential analysis is very sensitive to ordering.
 
 📝 Notes
-- seqanalysis relies on the external file seqanmap.mat, which must contain the decision matrix map.
-- The starting point in the map and the map structure are based on Bross’ original sequential medical plan.
-- If all pairs are non-informative (only 0-0 or 1-1), the procedure cannot start and out is set to NaN.
-- The function is intended for paired binary outcomes with exactly two treatments (A and B) per pair.
+The Bross decision map (seqanmap.mat) is included in this repository and must remain in the same folder as the functions. The sequential procedure assumes that the order of pairs is random; the robustness evaluator quantifies how strongly conclusions depend on that assumption.
 
 📚 Citation
-Cardillo G. (2008). Sequential analysis test for paired binary data.  
+Cardillo G. (2008–2025). Sequential analysis and robustness evaluation.
 GitHub: https://github.com/dnafinder/seqanalysis
 
 👤 Author
-Giuseppe Cardillo  
-Email: giuseppe.cardillo.75@gmail.com  
+Giuseppe Cardillo
+Email: giuseppe.cardillo.75@gmail.com
 GitHub: https://github.com/dnafinder
 
 ⚖️ License
-This project is released under the MIT License.
+This project is released under the GNU GPL-3.0 license.
