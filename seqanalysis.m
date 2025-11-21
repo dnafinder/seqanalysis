@@ -1,212 +1,186 @@
-function out = seqanalysis(x, varargin)
-%SEQANALYSIS Sequential analysis for paired binary outcomes (A vs B).
+function out = seqanalysis(x, flag)
+%SEQANALYSIS Sequential analysis for paired binary outcomes.
 %
-%   SEQANALYSIS(X) performs a sequential analysis on paired binary outcomes
-%   from two treatments (A and B). Each row of X represents a pair of
-%   patients, one treated with A and one with B, and each entry is:
-%       1 = positive response
-%       0 = negative response
-%
-%   Non-informative pairs, where both patients respond equally (0,0 or 1,1),
-%   are discarded. The remaining informative pairs are used to walk through
-%   a pre-defined decision map (stored in seqanmap.mat as a 31x31 matrix
-%   called "map"), following Bross' sequential medical plan. The walk stops
-%   when a decision boundary is reached or when all informative pairs are
-%   exhausted.
+%   SEQANALYSIS(X) performs Bross sequential analysis on paired binary
+%   outcomes for treatments A and B. X must be an N-by-2 matrix containing
+%   0/1 responses for each treatment within each pair.
 %
 %   SEQANALYSIS(X, FLAG) controls plotting:
-%       FLAG = 1 (default) : display the sequential decision chart
-%       FLAG = 0           : no plot (logic only)
+%       FLAG = 1  (default) → show the sequential pathway on the map
+%       FLAG = 0            → run silently (no plot)
 %
-%   OUT = SEQANALYSIS(...) returns the final state code reached in the map:
-%       -1 : twilight zone (data not sufficient at last step)
-%        0 : no difference between A and B
-%        1 : A is better
-%        2 : B is better
-%        3 : path tracking (internal use; not returned as final decision)
-%        4 : final point of movement (decision boundary)
-%       NaN: no informative pairs (all pairs are 0-0 or 1-1)
+%   ----------------------------------------------------------------------
+%   Description
+%   ----------------------------------------------------------------------
+%   Pairs where both A and B have the same response (0–0 or 1–1) are
+%   “non-informative” and are removed. Remaining informative pairs are
+%   processed in order. For each pair:
 %
-%   The function requires the auxiliary file:
-%       seqanmap.mat
-%   containing:
-%       map - a 31x31 numeric matrix with entries in {-1,0,1,2,3,4,NaN}
-%   representing the Bross decision regions and the path coding.
+%       • If A=1 and B=0 → move "up" in the decision matrix.
+%       • If A=0 and B=1 → move "right".
 %
-%   ------------------------------------------------------------------
-%   Syntax:
-%       seqanalysis(X)
-%       seqanalysis(X, FLAG)
-%       OUT = seqanalysis(X)
-%       OUT = seqanalysis(X, FLAG)
+%   The map used for navigation is stored in seqanmap.mat and contains
+%   Bross’ decision regions:
 %
-%   Inputs:
-%       X    - N-by-2 numeric matrix with entries in {0,1}.
-%              Column 1: response for treatment A
-%              Column 2: response for treatment B
+%       -1  twilight region (inconclusive)
+%        0  no difference between treatments
+%        1  treatment A is better
+%        2  treatment B is better
 %
-%       FLAG - (optional) plotting flag:
-%                1 = show the sequential chart (default)
-%                0 = suppress the plot
+%   Traversal stops as soon as a conclusive region is reached.
 %
-%   Output:
-%       OUT  - scalar final state code, as described above.
+%   If no informative pairs exist, SEQANALYSIS returns:
+%       out = NaN
+%       and produces a clear message (if FLAG=1).
 %
-%   Example:
-%       % Results from a clinical comparison between therapies A and B.
-%       % For each pair (A,B), 1 = positive, 0 = negative.
-%       x = [1 1; 1 0; 0 0; 1 0; 1 0; 1 1; 0 1; 1 1; 1 0; 1 0; ...
-%            1 0; 1 1; 1 0; 0 1; 0 0; 1 0; 1 0; 1 0; 1 1; 1 0];
-%       seqanalysis(x);
+%   ----------------------------------------------------------------------
+%   Syntax
+%   ----------------------------------------------------------------------
+%       out = seqanalysis(x)
+%       out = seqanalysis(x, flag)
 %
-%   Reference:
-%       Bross IDJ. Sequential medical plans. Biometrics. 1952; 8: 186–206.
+%   ----------------------------------------------------------------------
+%   Inputs
+%   ----------------------------------------------------------------------
+%   X       N-by-2 matrix of 0/1 responses.
+%   FLAG    Show plot (1) or silent mode (0). Default = 1.
 %
-%   ------------------------------------------------------------------
-%   Metadata:
-%       Author : Giuseppe Cardillo
-%       Email  : giuseppe.cardillo.75@gmail.com
-%       GitHub : https://github.com/dnafinder
-%       Created: 2008-01-01
-%       Updated: 2025-11-21
-%       Version: 2.0.0
+%   ----------------------------------------------------------------------
+%   Output
+%   ----------------------------------------------------------------------
+%   OUT     Final decision code:
+%               -1  twilight / inconclusive
+%                0  no difference
+%                1  A better
+%                2  B better
+%               NaN no informative pairs
 %
-%   Citation:
-%       Cardillo G. (2008) Sequential analysis test for paired binary data.
-%       GitHub: https://github.com/dnafinder/seqanalysis
+%   ----------------------------------------------------------------------
+%   Example
+%   ----------------------------------------------------------------------
+%       x=[1 1;1 0;0 0;1 0;1 0;1 1;0 1;1 1;1 0;1 0;...
+%          1 0;1 1;1 0;0 1;0 0;1 0;1 0;1 0;1 1;1 0];
+%       seqanalysis(x)
 %
-%   License:
-%       This code is distributed under the MIT License.
-%   ------------------------------------------------------------------
+%   ----------------------------------------------------------------------
+%   Citation
+%   ----------------------------------------------------------------------
+%   Cardillo G. (2008). Sequential analysis test.
+%   GitHub: https://github.com/dnafinder/seqanalysis
+%
+%   ----------------------------------------------------------------------
+%   Author
+%   ----------------------------------------------------------------------
+%   Author : Giuseppe Cardillo
+%   Email  : giuseppe.cardillo.75@gmail.com
+%   GitHub : https://github.com/dnafinder
+%   Created: 2008-01-01
+%   Updated: 2025-11-21
+%   Version: 2.0.0
+%
+%   ----------------------------------------------------------------------
+%   License
+%   ----------------------------------------------------------------------
+%   This code is released under the GNU GPL-3.0 license.
+%
 
-%% Input error handling
-p = inputParser;
-p.FunctionName = 'seqanalysis';
+%% Input handling
+if nargin < 2, flag = 1; end
 
-addRequired(p, 'x', @(v) validateattributes( ...
-    v, {'numeric'}, ...
-    {'2d','ncols',2,'nonempty','integer','real','finite','nonnan','nonnegative'}));
-
-addOptional(p, 'flag', 1, @(v) ...
-    isnumeric(v) && isscalar(v) && ismember(v, [0 1]));
-
-parse(p, x, varargin{:});
-x    = p.Results.x;
-flag = p.Results.flag;
-clear p
-
-% Ensure binary values {0,1}
-assert(all(ismember(x(:), [0 1])), ...
-    'seqanalysis:InvalidData', ...
+validateattributes(x, {'numeric'}, ...
+    {'nonempty','integer','real','finite','nonnan','ncols',2});
+assert(all(ismember(x(:),[0 1])), ...
     'All X values must be 0 or 1.');
 
-%% Load the decision map
-if exist('seqanmap.mat', 'file') ~= 2
-    error('seqanalysis:MissingMap', ...
-        ['The file seqanmap.mat was not found on the MATLAB path.\n' ...
-         'It must contain the 31x31 decision matrix "map".']);
-end
+validateattributes(flag, {'numeric','logical'}, ...
+    {'scalar'}, mfilename, 'flag');
 
-S = load('seqanmap.mat', 'map');
-map = S.map;
+flag = logical(flag);
 
-% Basic sanity check on map size
-if ~ismatrix(map) || any(size(map) ~= 31)
-    error('seqanalysis:InvalidMap', ...
-        'The variable "map" in seqanmap.mat must be a 31x31 matrix.');
-end
+%% Load map
+load seqanmap.mat map
 
-%% Define colormap for plotting (if requested)
-if flag == 1
-    C = [ 255 255   0;  ... % yellow
-          122  15 227;  ... % purple
-          255   0   0;  ... % red
-            0   0 255;  ... % blue
-            0 255 255;  ... % cyan
-            0 255   0   ... % green
-        ] ./ 255;
-end
-
-%% Starting point in the decision map (fixed by the original method)
-I = 30;
-J = 1;
-
-%% Delete concordant pairs (non-informative): (1,1) and (0,0)
+%% Remove non-informative pairs
 x(x(:,1) == x(:,2), :) = [];
 
-%% Special case: no informative pairs
 if isempty(x)
-    str = 'All pairs are non-informative: sequential plan cannot start.';
-    
-    if flag == 1
-        % Plot the unchanged map with an informative title
-        pcolor(map);
-        colormap(C);
-        axis ij square off;
-        title(str, 'FontSize', 14);
+    if flag
+        disp('No informative pairs available. Analysis cannot proceed.');
     end
-    
-    if nargout == 1
-        out = NaN;
-    end
-    return;
+    out = NaN;
+    return
 end
 
-%% Sequential walk in the decision map
-tmp = NaN;  % will be updated during the walk
+%% Initial position
+I = 30; 
+J = 1;
 
-for K = 1:size(x,1)
-    if x(K,1) == 1
-        % Only patient treated with A responds -> move up
+%% Colors for plot
+if flag
+    C = [255 255 0;
+         122  15 227;
+         255   0   0;
+           0   0 255;
+           0 255 255;
+           0 255   0]./255;
+end
+
+%% Sequential navigation
+finalValue = NaN;
+
+for k = 1:size(x,1)
+
+    if x(k,1) == 1
         I = I - 1;
     else
-        % Only patient treated with B responds -> move right
         J = J + 1;
     end
-    
-    tmp = map(I, J);  % current state before overwriting
-    
-    % In which zone of the matrix are we?
-    switch map(I, J)
-        case -1  % twilight zone
-            if K == size(x,1)
-                map(I, J) = 4;  % mark the end of movement
-                str = 'Data are not enough to prove which is the better between A and B';
+
+    region = map(I,J);
+
+    switch region
+        case -1        % Twilight
+            finalValue = -1;
+            if k == size(x,1)
+                map(I,J) = 4;
+            else
+                map(I,J) = 3;
             end
-            
-        case 0   % no difference between A and B
-            map(I, J) = 4;      % mark the end of movement
-            str = 'There is no difference between A and B';
-            break              % no more pairs required
-            
-        case 1   % A is better
-            map(I, J) = 4;      % mark the end of movement
-            str = 'A is the better one';
-            break              % no more pairs required
-            
-        case 2   % B is better
-            map(I, J) = 4;      % mark the end of movement
-            str = 'B is the better one';
-            break              % no more pairs required
+
+        case 0         % No difference
+            finalValue = 0;
+            map(I,J) = 4;
+            break
+
+        case 1         % A better
+            finalValue = 1;
+            map(I,J) = 4;
+            break
+
+        case 2         % B better
+            finalValue = 2;
+            map(I,J) = 4;
+            break
     end
-    
-    % Track the path of movement in the matrix
-    map(I, J) = 3;
+
+    map(I,J) = 3;
 end
 
-%% Plot (if requested)
-if flag == 1
-    pcolor(map);        % "checkerboard" plot of the matrix
-    colormap(C);        % set the colormap
-    axis ij square off; % conventional orientation & aspect
-    if exist('str','var')
-        title(str, 'FontSize', 14);
+%% Plot
+if flag
+    pcolor(map);
+    colormap(C);
+    axis ij square off
+
+    switch finalValue
+        case -1, title('Inconclusive: twilight zone');
+        case 0,  title('No difference between A and B');
+        case 1,  title('A is better');
+        case 2,  title('B is better');
+        otherwise
+            title('No informative pairs');
     end
 end
 
-%% Output (if requested)
-if nargout == 1
-    out = tmp;
-end
-
+if nargout, out = finalValue; end
 end
